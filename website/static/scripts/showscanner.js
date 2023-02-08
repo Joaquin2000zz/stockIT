@@ -1,8 +1,6 @@
 async function consult(code_content, path) {
   if (code_content) {
     const data = await (await fetch(`/${path}/${code_content}`)).json()
-    console.log(data);
-    console.log(code_content);
 
     if (path === 'inventory') {
 

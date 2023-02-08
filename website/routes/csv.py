@@ -9,11 +9,9 @@ from website.models.cost_qty import Cost_qty
 from website.models.profits import Profits
 from website.routes.product import generate_qr, generate_barcode
 from flask_login import login_required, current_user 
-from sqlalchemy.sql.expression import func 
-from sqlalchemy import and_ 
-from flask import Flask, render_template  
+from flask import render_template  
 from werkzeug.utils import secure_filename 
-from sqlalchemy import and_, desc
+from sqlalchemy import desc
 import requests
 import os 
 import csv
@@ -69,7 +67,6 @@ def dic_csv():
                     else:
                         flash("Cost/Price has to be a number.", category='error')
                         return redirect('/movements')
-                    print("xddddddd", price_cost)
                     
                     currency = line.get('UYU/USD')
                     if currency and currency.upper() == 'UYU' or currency.upper() == 'USD':
@@ -83,7 +80,8 @@ def dic_csv():
                         print("entre a la chucha del if")
                         try:
                             print(str(line.get('date')) + ' 00:00:00')
-                            line['date'] = datetime.strptime(str(line.get('date')) + ' 00:00:00', '%Y-%m-%d %H:%M:%S')
+                            line['date'] = datetime.strptime(
+                                str(line.get('date')) + ' 00:00:00', '%Y-%m-%d %H:%M:%S')
                         except:
                             flash("Date need the format '%Y-%m-%d'", category='error')
                             return redirect('/movements')
@@ -104,12 +102,12 @@ def dic_csv():
                         branch2 = Branch.query.filter_by(name=branch).first()
                         line['branch_id'] = branch2.id
                         prod = Product.query.filter_by(name=name).first()
-                        print(prod)
                         line['prod_id'] = prod.id
                         # checking if exists prevs entries of this new entrie in all branches
                         prodMov = Movements.query.filter_by(prod_id=prod.id).order_by(desc(Movements.date)).all()
                         # checking if exists prevs entries of this new entry in their respective branch
-                        branchStock = Movements.query.filter(and_(Movements.prod_id == prod.id, Movements.branch_id == branch2.id)).order_by(desc(Movements.date)).all()
+                        branchStock = Movements.query.filter(
+                            (Movements.prod_id == prod.id) & (Movements.branch_id == branch2.id)).order_by(desc(Movements.date)).all()
 
                         if not branchStock and in_out == False:
                             flash('Error. Cannot make outs of products on branch without stock', category='error')
@@ -117,9 +115,7 @@ def dic_csv():
                         # checking if branch has stock before make outs of products
                         itemQuantity = 0
                         for item in branchStock:
-                            print((item.quantity))
                             if item.in_out is True:
-                                print(item.quantity)
                                 itemQuantity += int(item.quantity)
                             else:
                                 itemQuantity -= int(item.quantity)
@@ -137,11 +133,9 @@ def dic_csv():
 
                         item2 = Movements.query.filter_by(prod_id=prod.id).order_by(desc(Movements.date)).all()
                         for item in item2:
-                            print(item.date)
                         prodMov = Movements.query.filter_by(prod_id=prod.id).order_by(desc(Movements.date)).all()
                         if len(prodMov) == 1:
                             """new product to the inventory"""
-                            print(f'\n\n\nvamos a hacer un nuevo producto :3\n\n')
                             newItemInv = {}
                             newItemInv['owner'] = current_user.email
                             newItemInv['prod_id'] = prod.id
@@ -169,7 +163,6 @@ def dic_csv():
                             """quantity addition of the product"""
                             item = Inventory.query.filter_by(prod_id=prod.id).first()
                             if in_out is True:
-                                print(f'\n\n\nle sumamos al producto :3\n\n')
                                 item.quantity += qty
                                 
                                 """adding item to cost_qty table"""
@@ -189,11 +182,9 @@ def dic_csv():
                                 db.session.add(newItem)
                                 
                             elif in_out is False and qty > item.quantity or item.quantity is None:
-                                print(f'\n\n\nflasheaste :3\n\n')
                                 flash('Error. Cannot make outs of products without stock', category='error')
                                 redirect('/movements')
                             else:
-                                print(f'\n\n\nle restamos el producto :3\n\n')
                                 item.quantity -= qty
                                 """adding new item to price-cant json if not exists is
                                 created and if the item exists make an addition
@@ -214,7 +205,6 @@ def dic_csv():
                                             dollar = requests.get(f'https://cotizaciones-brou.herokuapp.com/api/currency/{str(prodMov[0].date.date())}')
                                             dollar = dollar.json()['rates']['USD']['sell']
                                         unitprofit = (price_cost - (cost_qty[-i].cost * dollar))
-                                        print(f'\nunit profit {unitprofit} iteracion {j}')
                                         profitList.append(unitprofit)
                                     elif cost_qty[-i].currency is False and prodMov[0].currency is True:
                                         if not dollar:
@@ -231,7 +221,6 @@ def dic_csv():
                                         i += 1
                                         dollar = None
 
-                                print(f"\n profitlist {profitList} suma de los profits {math.fsum(profitList)}")
                                 profitDict = {}
                                 profitDict['prod_id'] = prod.id
                                 profitDict['owner'] = current_user.email
@@ -259,14 +248,11 @@ def dic_csv():
         file = form2.file2.data 
         file.save(os.path.join(os.path.abspath(os.path.dirname(__file__)),app.config['UPLOAD_FOLDER'],secure_filename(file.filename)))
         filename, file_extension = os.path.splitext(file.filename)
-        print(file_extension)
         branches = Branch.query.filter_by(owner=current_user.email)
-        print(branches)
         if file_extension == '.csv':
             with open(os.path.abspath(os.path.dirname(__file__)) + '/files/' + file.filename, 'r') as data:
                 for line in csv.DictReader(data):
                     branch_name = line.get('branch')
-                    print(f'\n\n\n{line}\n\n')
                     if not branch_name:
                         flash('Branch is mandatory', category='error')
                         return redirect(url_for('subsidiary.subsidiary_view'))
@@ -282,7 +268,6 @@ def dic_csv():
                     currentBranch = currentBranch = Branch.query.filter((Branch.name==branch_name) & (Branch.owner==current_user.email)).first()
                     if currentBranch:
                         currentBranchName = currentBranch.name.strip()
-                        print(f"\n\n\nnew {branch_name.lower()} current {currentBranchName.lower()}\n\n")
                         if branch_name.lower() == currentBranchName.lower():
                             flash('This branch already exists "' + str(branch_name) + '"', category='error')
                             return redirect(url_for('subsidiary.subsidiary_view'))
@@ -300,9 +285,7 @@ def dic_csv():
         file = form3.file3.data 
         file.save(os.path.join(os.path.abspath(os.path.dirname(__file__)),app.config['UPLOAD_FOLDER'],secure_filename(file.filename)))
         filename, file_extension = os.path.splitext(file.filename)
-        print(file_extension)
         branches = Branch.query.filter_by(owner=current_user.email)
-        print(branches)
         if file_extension == '.csv':
             with open(os.path.abspath(os.path.dirname(__file__)) + '/files/' + file.filename, 'r') as data:
                 for line in csv.DictReader(data):
@@ -333,29 +316,27 @@ def dic_csv():
                         else:
                             generate_qr(new_prod.id)
                         db.session.commit()
-                        #print(f'\n\n\n{new_prod.qr_barcode}\n\n')
                     else:
-                        print("HELLOOWEWE")
                         flash('Product is a mandatory field', category='error')
                         return redirect(url_for('product.prod'))
                 flash("Poducts added", category='success')
                 return redirect('/product')
     return render_template('csv.html', user=current_user, form3=form3, form2=form2, form=form)
+
 @csv_v.route('/csv/download', methods=['GET', 'POST'], strict_slashes=False) 
 @limiter.limit("20/minute")
 @login_required
 def download_file_movement():
-    print("downloaaaad")
     return send_file("routes/files/csv_templates/movement_template.csv", as_attachment=True)
+
 @csv_v.route('/csv/download2', methods=['GET', 'POST'], strict_slashes=False) 
 @limiter.limit("20/minute")
 @login_required
 def download_file_product():
-    print("downloaaaad")
     return send_file("routes/files/csv_templates/product_template.csv", as_attachment=True)
+
 @csv_v.route('/csv/download3', methods=['GET', 'POST'], strict_slashes=False) 
 @limiter.limit("20/minute")
 @login_required
 def download_file_branch():
-    print("downloaaaad")
     return send_file("routes/files/csv_templates/branch_template.csv", as_attachment=True)

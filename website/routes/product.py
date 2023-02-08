@@ -6,7 +6,6 @@ from website.models.product import Product
 from website.models.branch import Branch
 from flask_login import login_required, current_user
 from sqlalchemy.sql.expression import func
-from sqlalchemy import and_, or_, desc, asc
 import requests
 
 product = Blueprint('product', __name__)
@@ -30,9 +29,8 @@ def prod():
         userprod = Product.query.filter(Product.owner == current_user.email)
 
         # search input section
-        data = userprod.filter(or_(Product.id.like(search),
-                                    Product.name.like('%' + search + '%'), 
-                                    Product.qr_barcode.like(search)))
+        data = userprod.filter(
+            (Product.id.like(search)) | (Product.name.like('%' + search + '%')) | (Product.qr_barcode.like(search)))
 
         return render_template('product.html', user=current_user, products=data)
 
@@ -45,7 +43,8 @@ def prod():
 
         if name:
             name = name.strip()
-            currentName = Product.query.filter((Product.name==name) & (Product.owner==current_user.email)).first()
+            currentName = Product.query.filter(
+                (Product.name==name) & (Product.owner==current_user.email)).first()
             if currentName and name.lower() == currentName.name.lower():
                 flash('Product already exists', 'error')
                 return redirect(url_for('product.prod'))
@@ -63,7 +62,6 @@ def prod():
             elif qr_barcode == 'barcode':
                 generate_barcode(new_prod.id)
             db.session.commit()
-            #print(f'\n\n\n{new_prod.qr_barcode}\n\n')
             flash("Poduct added", category='success')
             return redirect('/product')
         else:
@@ -83,11 +81,9 @@ def prod():
 @login_required
 def prodUpdate(id):
     """updating or consulting item from product"""
-    print(f'\n\n\n{request.method}\n\n')
     item = Product.query.filter_by(id=id).first()
     if request.method == 'POST':
         prodDict = request.form.to_dict()
-        print(f'donde teniaq entrar, entré lpm keys:{prodDict.keys()}')
 
         if prodDict is None:
             abort(404)
@@ -95,34 +91,22 @@ def prodUpdate(id):
         #updating description if exists
 
         description = prodDict.get('descriptionUpdate')
-        print(f'\n\ndescription del primer get {description}\n')
         if description is None:
-            print(f'\n\nentre al if q no debía xd\n')
 
             description = prodDict.get('descriptionBarcodeUpdate')
 
-        print(f'antes de setear descripción qr_barcodeUpdate{prodDict.get("qr_barcodeUpdate")}\n\n{item.description}\n')
         if description:
-            print(f"\n\nentré a setear nueva descripción item.description {item.description} description {description}\n")
             item.description = description
             db.session.commit()
-            print(f"\n\ndespués de setear nueva descripción item.description {item.description} description {description}\n")
-
-
-        print(f'\n\nitem descrption en obj{item.description}\n')
 
         qr_barcode = prodDict.get('qr_barcodeUpdate')
         if qr_barcode is None:
             qr_barcode = prodDict.get('qr_barcodeBarcodeUpdate')
-        print(f'\n\nllegué acá. form dict:{prodDict}\n\n')
         if qr_barcode:
 
-
             if qr_barcode == 'qr' and item.qr_barcode != qr_barcode:
-                print(f'\n\n\nentre lpm al qr\n\n')
                 generate_qr(item.id)
             elif qr_barcode == 'barcode' and item.qr_barcode != qr_barcode:
-                print(f'\n\n\nentre lpm al barcode\n\n')
                 generate_barcode(item.id)
 
             item.qr_barcode = qr_barcode
@@ -134,8 +118,8 @@ def prodUpdate(id):
             flash('Name, Branch and Quantity are mandatory fields', category='error')
     try:
         # filter query by logged user and id
-        product = Product.query.filter(and_(Product.owner==current_user.email, Product.id==id)).first()
-        print(f'\n\n\n{product}\n\n')
+        product = Product.query.filter(
+            (Product.owner==current_user.email) & (Product.id==id)).first()
         # making a diccionary to use the GET method as API
         toDict = product.__dict__
         toDict.pop('_sa_instance_state')
@@ -158,7 +142,6 @@ def generate_qr(id):
 
     response = requests.request("GET", url, headers=headers, params=querystring)
 
-    print(f'\n\n\n{response._content}\n\n')
     #taking the content's bytes to write the PNG img
     image_data = response._content
     path = f'./../static/images/qr.{id}.png'
@@ -184,7 +167,6 @@ def generate_barcode(id):
         #encoding string to bytes to then write a file with the PNG img
         image_data = base64.b64decode(image_data.replace('data:image/PNG;base64,', '').encode())
         path = f'./../static/images/barcode.{id}.png'
-        print(f'\n\n\n{path}\n\n')
         with open(os.path.join(os.path.dirname(__file__), path), 'wb+') as out_file:
             out_file.write(image_data)
         return response.json().get('barcode')

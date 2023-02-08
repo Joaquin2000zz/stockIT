@@ -3,7 +3,7 @@ from website.models.movements import Movements
 from website.models.branch import Branch
 from website.models.inventory import Inventory
 from flask_login import login_required
-from flask import Blueprint, render_template, request, flash, redirect, jsonify, abort, url_for
+from flask import Blueprint, render_template, request, flash, redirect, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import and_, asc
 from website import limiter
@@ -67,9 +67,8 @@ def inventory_page():
             for item in stock:
                 # calculating the current stock for specific branch
                 currentStock = 0
-                for mov in Movements.query.filter_by(owner=current_user.email).filter(and_(
-                                                                                      Movements.prod_id == item['id'],
-                                                                                      Movements.branch_id == selectedBranch.id)).all():
+                for mov in Movements.query.filter_by(owner=current_user.email).filter(
+                    (Movements.prod_id == item['id']) & (Movements.branch_id == selectedBranch.id)).all():
                     if mov.in_out is True:
                         currentStock += mov.quantity
                     elif mov.in_out is False:
@@ -77,7 +76,6 @@ def inventory_page():
                 item['quantity'] = currentStock
                 item['branch'] = selectedBranch.name
                 graph_data[item['name']] = item['quantity']
-                print(item)
 
                 if item['quantity'] == 0:
                     item_no_quantity.append(item)    
@@ -89,16 +87,12 @@ def inventory_page():
         if selectedBranch != 'All Branches (default)' and search:
             prod_id = Product.query.filter_by(name=search).first().id
             branch_id = Branch.query.filter_by(name=selectedBranch).first().id
-            print(f'\n\n\nbranch_id {prod_id}\n\n')
             prodMovements = Movements.query.filter((Movements.branch_id==branch_id) & (Movements.prod_id==prod_id) & (Movements.owner==current_user.email)).order_by(asc(Movements.date)).all()
             graph_data = [['Date', 'Entries', 'Outs']]
 
-            print(f'\n\n\nprodMovements antes del for: {prodMovements}\n\n')
             prev = None
             prodMovementsLen = len(prodMovements)
             for i in range(prodMovementsLen):
-                print(f'\n\n\n{prodMovements[i].__dict__}\n\n')
-                print(f'\n\nmov date : {str(prodMovements[i].date.date())} prev: {prev}\n')
                 if not prev:
                     new_data = [0, 0, 0]
                     new_data[0] = str(prodMovements[i].date.date())
@@ -109,7 +103,6 @@ def inventory_page():
                     prev = str(prodMovements[i].date.date())
                     if i == prodMovementsLen -1:
                         graph_data.append(new_data)
-                    print(f'\n\nentre al primer if new data: {new_data} prev: {prev}\n')
                 elif prev and str(prodMovements[i].date.date()) == prev:
                     new_data[0] = str(prodMovements[i].date.date())
                     if prodMovements[i].in_out == True:
@@ -117,7 +110,6 @@ def inventory_page():
                     elif prodMovements[i].in_out == False:
                         new_data[2] += prodMovements[i].quantity
                     prev = str(prodMovements[i].date.date())
-                    print(f'\n\nentre al segundo if new data: {new_data} prev: {prev}\n')
                     if i == prodMovementsLen -1:
                         graph_data.append(new_data)
                 elif prev and str(prodMovements[i].date.date()) != prev:
@@ -148,8 +140,6 @@ def inventory_page():
                         graph_data[item['name'] + " " + "On(" + selectedBranch.name + ")"] = currentStock
                         if item['name'] in graph_data:
                             graph_data.pop(item['name'])
-                        print(graph_data)
-                    print(item)
 
     # branches from user to pass to jinja
     branches = Branch.query.filter_by(owner=current_user.email).all()
@@ -157,7 +147,6 @@ def inventory_page():
     for branch in branches:
         branchesList.append(branch.name)
 
-    print(f'\n\n\nla data: {graph_data}\n\n')
     return render_template('inventory.html', stock=stock, user=current_user, branches=branchesList, data=graph_data, border_case=border_case)
 
 

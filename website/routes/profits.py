@@ -1,15 +1,11 @@
-from ast import operator
-from hashlib import new
 from website.models.product import Product
-from website.models.movements import Movements
 from website.models.branch import Branch
 from website.models.inventory import Inventory
 from website.models.profits import Profits
-from website.models.cost_qty import Cost_qty
 from flask_login import login_required
-from flask import Blueprint, render_template, request, flash, redirect, jsonify, abort, url_for
+from flask import Blueprint, render_template, request, flash, redirect, jsonify
 from flask_login import login_required, current_user
-from sqlalchemy import and_, asc, desc
+from sqlalchemy import asc, desc
 from website import limiter
 from operator import itemgetter
 import requests
@@ -35,7 +31,6 @@ def inventory_page():
     search = search.lower().strip() if search else None
     selectedBranch = formDict.get('selectBranch')
     orderBy = formDict.get('orderBy')
-    print(f'\nlas weas:{formDict}')
 
 
     # consulting profits from all branches
@@ -102,7 +97,6 @@ def inventory_page():
         if item.currency is False:
             if not dollar:
                 dollar = requests.get('https://cotizaciones-brou.herokuapp.com/api/currency/latest')
-                print(f"\n\n{dollar.json()}")
                 dollar = dollar.json()['rates']['USD']['sell']
             graphItem['profit'] = item.profit / dollar
         else:    
@@ -119,9 +113,7 @@ def inventory_page():
             to_sort[-1].append(item)
         else:
             to_sort.append([item])
-        print(f"\nitems de la query {item}")
 
-    print(f'estaran separadas? {to_sort}')
     uniqueValues = []
     for item in to_sort:
         unique = []
@@ -149,23 +141,18 @@ def inventory_page():
                 unique.append(dictUnique)
         uniqueValues.append(unique)
     
-
-    print(f'\nestá ordenada? {to_sort}\n\n valores unicos {uniqueValues} \n')
-
     invProd = Inventory.query.filter_by(owner=current_user.email).all()
     prodList = []
     for item in invProd:
         prodList.append(Product.query.filter_by(id=item.prod_id).first().name)
     prodList.sort()
     prodLen = len(prodList)
-    print(f'\nproductos {prodList}')
     to_graph = [["Product names"] + prodList]
     if search:
         to_graph = [["Product name", search]]
         for item in uniqueValues:
             newEntry = [item[0]['date']]
             for dict in item:
-                print(f"\ndict['name'].lower() {dict['name'].lower()} == prodList[0].lower() {prodList[0].lower()}")
                 if search in dict['name'].lower():
                     if len(newEntry) == 2:
                         newEntry[1] += dict['profit']
@@ -192,7 +179,6 @@ def inventory_page():
                     else:
                         newEntry.append(0)
             to_graph.append(newEntry)
-    print(f'\nestará para graficar? {to_graph}')
     
     branchesChart = [['Branch', 'Profit']]
     for item in Branch.query.filter_by(owner=current_user.email).all():
@@ -201,17 +187,13 @@ def inventory_page():
             list = [item.name]
             sum = []
             for value in branchProfit:
-                print(f"\n\n{branchProfit}\n")
                 if value.currency is False:
                     if not dollar:
                         dollar = requests.get('https://cotizaciones-brou.herokuapp.com/api/currency/latest')
-                        print(f"\n\n{dollar.json()}")
                         dollar = dollar.json()['rates']['USD']['sell']
                     sum.append(value.profit / dollar)
                 else:
-                    print(f"\n\nesta en dolares {value.profit}")
                     sum.append(value.profit)
-            print(f"\n\nsumas {sum}\n")
             list.append(math.fsum(sum))
             branchesChart.append(list)
 
@@ -231,18 +213,12 @@ def inventory_page():
                 if value.currency is False:
                     if not dollar:
                         dollar = requests.get('https://cotizaciones-brou.herokuapp.com/api/currency/latest')
-                        print(f"\n\n{dollar.json()}")
                         dollar = dollar.json()['rates']['USD']['sell']
                     sum.append(value.profit / dollar)
                 else:    
                     sum.append(value.profit)
-            print(f"\n\nsumas {sum}\n")
             list.append(math.fsum(sum))
             productsChart.append(list)
-
-    print(f"\nbranches chart {branchesChart}")
-
-    print(f'\n\n{to_graph}\n')        
     
     return render_template('profits.html', profits=profits, user=current_user,
                            branches=branchesList, graph0=to_graph, graph1=branchesChart, graph2=productsChart)
@@ -260,7 +236,6 @@ def profits_product(id):
     
     # consulting profits from all branches
     profitsQuery = Profits.query.filter_by(owner=current_user.email).filter_by(prod_id=id).all()
-
 
     #filling profits dictionary with prod name, quantity, description and product id
     profitsList = []

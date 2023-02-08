@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, flash, redirect, jsonify, abort, url_for
+from flask import Blueprint, render_template, request, flash, redirect
 from website import db, limiter
 from website.models.cost_qty import Cost_qty
 from website.models.movements import Movements
@@ -7,7 +7,7 @@ from website.models.product import Product
 from website.models.inventory import Inventory
 from website.models.profits import Profits
 from flask_login import login_required, current_user
-from sqlalchemy import and_, or_, desc, asc
+from sqlalchemy import desc, asc
 import requests
 import math
 
@@ -64,7 +64,6 @@ def move():
                 graph_data2[movementDict['product']] = movementDict['quantity']
 
         for selectedBranch2 in Branch.query.filter_by(owner=current_user.email).all():
-            print(selectedBranch2.name)
             if movementDict['in_out'] == 'Entry' and selectedBranch2.name == movementDict['branch']:
                 if movementDict['product'] + " On(" + movementDict['branch'] + ")" in graph_data3:
                     graph_data3[movementDict['product'] + " On (" + movementDict['branch'] + ")"] += movementDict['quantity']
@@ -97,15 +96,14 @@ def move():
         searchBranch = "None" if not searchBranch else str(searchBranch.id)
 
         # search input section
-        srch = userprod.filter(or_(Movements.date.like(search),
-                                   Movements.prod_id.like(searchProduct),
-                                   Movements.branch_id.like(searchBranch)))
+        srch = userprod.filter(
+            (Movements.date.like(search)) | (Movements.prod_id.like(searchProduct)) | (Movements.branch_id.like(searchBranch))
+            )
  
         # Order By select section
         if orderby == 'newest' and search:
             data = srch.order_by(asc(Movements.date)).all()
         elif orderby == 'newest' and not search:
-            print(f"\n\n\n{srch}\n\n")
             data = userprod.order_by(desc(Movements.date)).all()
         elif orderby == 'oldest' and search:
             data = srch.order_by(desc(Movements.date)).all()
@@ -130,14 +128,11 @@ def move():
         if not movementsList and not orderby:
             flash('No results found', 'error')
             return redirect('/movements')
-        print(f'\n{movementDict}')
 
         return render_template('movements.html', user=current_user,
                             branches=branches, products=products, movements=movementsList, data=graph_data, data2=graph_data2, data3=graph_data3, data4=graph_data4)
-    print(f'\n\ncon q metodo entro?????????{request.method} diccrionatio {request.form}')
     if request.method == 'POST' and "btn-add" in request.form:
         prodDict = request.form.to_dict()
-        print(f'\n\n sera????? {prodDict}')
         name = prodDict.get('name')    
         branch = prodDict.get('branch')
         qty = prodDict.get('quantity')
@@ -185,7 +180,8 @@ def move():
             # checking if exists prevs entries of this new entrie in all branches
             prodMov = Movements.query.filter_by(prod_id=prod.id).order_by(desc(Movements.date)).all()
             # checking if exists prevs entries of this new entry in their respective branch
-            branchStock = Movements.query.filter(and_(Movements.prod_id == prod.id, Movements.branch_id == branch2.id)).order_by(desc(Movements.date)).all()
+            branchStock = Movements.query.filter(
+                (Movements.prod_id == prod.id) & (Movements.branch_id == branch2.id)).order_by(desc(Movements.date)).all()
 
             if not branchStock and in_out == False:
                 flash('Error. Cannot make outs of products on branch without stock', category='error')
@@ -200,12 +196,10 @@ def move():
             if itemQuantity < qty and in_out is False:
                 flash('Error. Cannot make outs of products greather than branch stock', category='error')
                 return redirect('/movements')
-            print(f'\n\n\nlargo: {len(prodMov)} movement: {in_out} pelado: {prodMov}\n\n')
             if qty < 1:
                 flash('Error. Cannot make movements of numbers lower than 1', category='error')
                 return redirect('/movements')
             if not prodMov and in_out == False:
-                print("\n\nbolas\n")
                 flash('Error. Cannot make outs of products without stock', category='error')
                 return redirect('/movements')
             new_prod = Movements(**prodDict)
@@ -214,12 +208,9 @@ def move():
 
             item2 = Movements.query.filter_by(prod_id=prod.id).order_by(desc(Movements.date)).all()
             for item in item2:
-                print("aaaaaaasheeee")
-                print(item.date)
             prodMov = Movements.query.filter_by(prod_id=prod.id).order_by(desc(Movements.date)).all()
             if len(prodMov) == 1:
                 """new product to the inventory"""
-                print(f'\n\n\nvamos a hacer un nuevo producto :3\n\n')
                 newItemInv = {}
                 newItemInv['owner'] = current_user.email
                 newItemInv['prod_id'] = prod.id
@@ -272,12 +263,10 @@ def move():
 
 
                 elif in_out is False and qty > item.quantity or item.quantity is None:
-                    print(f'\n\n\nflasheaste :3\n\n')
                     flash('Error. Cannot make outs of products without stock', category='error')
                     redirect('/movements')
                 else:
                     """quantity substraction of the product in inventory"""
-                    print(f'\n\n\nle restamos al producto :3\n\n')
                     item.quantity -= qty
 
                     """adding new item to price-cant json if not exists is
@@ -299,7 +288,6 @@ def move():
                                 dollar = requests.get(f'https://cotizaciones-brou.herokuapp.com/api/currency/{str(prodMov[0].date.date())}')
                                 dollar = dollar.json()['rates']['USD']['sell']
                             unitprofit = (price_cost - (cost_qty[-i].cost * dollar))
-                            print(f'\nunit profit {unitprofit} iteracion {j}')
                             profitList.append(unitprofit)
                         elif cost_qty[-i].currency is False and prodMov[0].currency is True:
                             if not dollar:
@@ -316,7 +304,6 @@ def move():
                             i += 1
                             dollar = None
 
-                    print(f"\n profitlist {profitList} suma de los profits {math.fsum(profitList)}")
                     profitDict = {}
                     profitDict['prod_id'] = prod.id
                     profitDict['owner'] = current_user.email
@@ -327,8 +314,6 @@ def move():
                     profitDict['currency'] = prodMov[0].currency
                     newItem = Profits(**profitDict)
                     db.session.add(newItem)
-
-
 
                 db.session.commit()
             flash('Movement added successfully', category='success')

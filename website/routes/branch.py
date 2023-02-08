@@ -1,10 +1,7 @@
 from flask import Blueprint, jsonify, render_template, request, flash, redirect, url_for
-from website import views
 from website import db, limiter
 from website.models.branch import Branch
-from website.models.user import User
 from flask_login import login_required, current_user
-from sqlalchemy.sql.expression import func
 
 subsidiary = Blueprint('subsidiary', __name__)
 
@@ -23,7 +20,6 @@ def subsidiary_view():
     if request.method == 'POST':
         branch_dict = request.form.to_dict()
         name = branch_dict.get('name')
-        print(f'\n\n\n{branch_dict}\n\n')
         if not name:
             flash('Name is mandatory', category='error')
             return redirect(url_for('subsidiary.subsidiary_view'))
@@ -36,10 +32,11 @@ def subsidiary_view():
 
         branch_dict['name'] = name
 
-        currentBranch = currentBranch = Branch.query.filter((Branch.name==name) & (Branch.owner==current_user.email)).first()
+        currentBranch = currentBranch = Branch.query.filter(
+            (Branch.name==name) & (Branch.owner==current_user.email)).first()
+        
         if currentBranch:
             currentBranchName = currentBranch.name.strip()
-            print(f"\n\n\nnew {name.lower()} current {currentBranchName.lower()}\n\n")
             if name.lower() == currentBranchName.lower():
                 flash('This branch already exists', category='error')
                 return redirect(url_for('subsidiary.subsidiary_view'))
@@ -73,10 +70,10 @@ def update_subsidiary(id):
         if type(name) != str:
             flash('Name must be a string', category='error')
             return redirect(url_for('subsidiary.subsidiary_view'))
-        currentBranch = Branch.query.filter((Branch.name==name) & (Branch.owner==current_user.email)).first()
+        currentBranch = Branch.query.filter(
+            (Branch.name==name) & (Branch.owner==current_user.email)).first()
         if currentBranch:
             currentBranchName = currentBranch.name.strip()
-            print(f"\n\n\nnew {name.lower()} current {currentBranchName.lower()}\n\n")
             if name.lower() == currentBranchName.lower():
                 flash('This branch already exists', category='error')
                 return redirect(url_for('subsidiary.subsidiary_view'))
@@ -88,7 +85,6 @@ def update_subsidiary(id):
     try:
         currentSubsidiaryDict = currentSubsidiary.__dict__
         currentSubsidiaryDict.pop('_sa_instance_state')
-        print(f'\n\n\ndiccionario tas? {currentSubsidiaryDict}\n\n')
         return jsonify(currentSubsidiaryDict)
     except:
         pass
